@@ -1,291 +1,132 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>云音乐解析 - 网易云音乐</title>
-    <style>
-        :root {
-            --netease-red: #C20C0C;
-            --netease-dark: #333;
-            --soft-bg: #f5f5f7;
-        }
-        
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        
-        body {
-            font-family: 'PingFang SC', -apple-system, sans-serif;
-            background-color: var(--soft-bg);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            padding: 20px;
-        }
-        
-        /* 核心卡片：固定宽度，预留高度 */
-        .main-card {
-            background: #ffffff;
-            width: 480px; /* 固定宽度，预留出足够的水平空间 */
-            max-width: 95%; /* 适配小屏幕 */
-            min-height: 380px; /* 预留垂直高度，防止内容出现时盒子拉伸 */
-            padding: 50px 40px;
-            border-radius: 32px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.05);
-            text-align: left;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        /* 装饰气泡保持 */
-        .main-card::before {
-            content: '';
-            position: absolute;
-            top: -20px;
-            right: -20px;
-            width: 100px;
-            height: 100px;
-            background: var(--netease-red);
-            opacity: 0.05;
-            border-radius: 50%;
-        }
-        
-        .title-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 8px;
-        }
-        
-        h2 { font-size: 24px; color: var(--netease-dark); font-weight: 600; }
-        
-        .info-trigger {
-            background: #eee;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 13px;
-            color: #999;
-            cursor: pointer;
-            transition: all 0.3s;
-            border: none;
-            font-weight: bold;
-        }
-        .info-trigger:hover { background: var(--netease-red); color: white; }
-        
-        p.subtitle {
-            font-size: 13px;
-            color: #999;
-            margin-bottom: 35px;
-            letter-spacing: 0.5px;
-        }
-        
-        /* 输入框组合：Flex对齐 */
-        .input-box {
-            display: flex;
-            align-items: center;
-            background: #f0f0f2;
-            border-radius: 16px;
-            padding: 6px;
-            transition: all 0.3s ease;
-            margin-bottom: 30px;
-        }
-        
-        .input-box:focus-within {
-            background: #fff;
-            box-shadow: 0 0 0 2px var(--netease-red);
-        }
-        
-        input {
-            flex: 1;
-            border: none;
-            background: transparent;
-            padding: 12px 14px;
-            font-size: 14px;
-            outline: none;
-            color: #333;
-        }
-        
-        .action-btn {
-            width: 45px;
-            height: 45px;
-            background: var(--netease-red);
-            border: none;
-            border-radius: 12px;
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.2s;
-            box-shadow: 0 4px 12px rgba(194, 12, 12, 0.3);
-            flex-shrink: 0;
-        }
-        
-        .action-btn:hover { transform: scale(1.05); }
-        
-        /* 解析结果占位符：确保盒子高度固定 */
-        #result-container {
-            height: 80px; /* 固定高度占位 */
-            margin-top: 10px;
-        }
-        
-        #result-module {
-            display: none;
-            animation: fadeIn 0.4s ease forwards;
-        }
-        
-        .download-wrapper {
-            display: flex;
-            align-items: center;
-            background: #fff;
-            border: 1px solid #eee;
-            padding: 15px;
-            border-radius: 18px;
-            text-decoration: none;
-            transition: all 0.3s;
-        }
-        
-        .download-wrapper:hover {
-            border-color: var(--netease-red);
-            background: rgba(194, 12, 12, 0.02);
-            transform: translateX(5px);
-        }
-        
-        .icon-circle {
-            width: 44px;
-            height: 44px;
-            background: var(--netease-red);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            margin-right: 15px;
-            flex-shrink: 0;
-        }
-        
-        .text-group { display: flex; flex-direction: column; }
-        .text-group .main-text { font-weight: 600; color: #333; font-size: 15px; }
-        .text-group .sub-text { font-size: 11px; color: #999; margin-top: 2px; }
-        
-        /* 弹窗样式保持不变 */
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.4);
-            backdrop-filter: blur(8px);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        
-        .modal-content {
-            background: white; padding: 30px; border-radius: 24px;
-            width: 90%; max-width: 350px; box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-        }
-        
-        .close-modal {
-            background: var(--netease-red); color: white; border: none;
-            padding: 10px 0; width: 100%; border-radius: 12px;
-            cursor: pointer; font-weight: 600; margin-top: 20px;
-        }
-        
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        
-        @media (max-width: 480px) {
-            .main-card { padding: 40px 25px; min-height: 350px; }
-        }
-    </style>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    
+    <title>音乐外链解析平台 | 专业版</title>
+    <meta name="description" content="AudioParse 音乐外链解析工具，支持网易云音乐链接提取与 MP3 生成。" />
+    <meta name="keywords" content="音乐解析,网易云解析,外链生成" />
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "AudioParse",
+      "applicationCategory": "UtilitiesApplication"
+    }
+    </script>
+
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-    <div class="main-card">
-        <div class="title-row">
-            <h2>网易云解析</h2>
-            <button class="info-trigger" onclick="toggleModal(true)">?</button>
+    <nav class="navbar">
+        <div class="nav-inner">
+            <div class="brand">AudioParse</div>
+            <div class="nav-btn" id="openAbout">关于我们</div>
         </div>
-        <p class="subtitle">输入 ID 自动匹配网易云音乐链接</p>
+    </nav>
 
-        <div class="input-box">
-            <input type="text" id="songId" placeholder="粘贴 ID 或 链接..." autocomplete="off">
-            <button class="action-btn" onclick="handleParse()">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-            </button>
-        </div>
+    <main class="main-container">
 
-        <div id="result-container">
-            <div id="result-module">
-                <a id="audioLink" href="" target="_blank" class="download-wrapper">
-                    <div class="icon-circle">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
+        <section class="left-column">
+            
+            <div class="card parse-card">
+                <h2>音乐外链解析</h2>
+                <p>输入网易云音乐分享链接或歌曲 ID，即可一键生成音频外链。</p>
+                
+                <div class="input-wrapper">
+                    <input id="inputId" class="input-field" type="text" placeholder="粘贴链接或输入 ID (如 1860000)">
+                </div>
+                
+                <button id="parseBtn" class="btn-primary">开始解析</button>
+                <div id="notice" class="notice"></div>
+
+                <div id="resultBox" class="result-box">
+                    <div class="btn-grid">
+                        <button id="playBtn" class="action-btn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            播放
+                        </button>
+                        <a id="downloadBtn" class="action-btn" download>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            下载
+                        </a>
+                        <a id="openBtn" class="action-btn" target="_blank">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                            打开
+                        </a>
+                        <button id="copyBtn" class="action-btn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            复制
+                        </button>
                     </div>
-                    <div class="text-group">
-                        <span class="main-text">获取成功，点击下载</span>
-                        <span class="sub-text">AUDIO/MP3 320KBPS</span>
-                    </div>
-                </a>
+                </div>
+            </div>
+
+            <div class="card player-card">
+                <div class="player-header">
+                    <div class="player-title" id="songTitle">未在播放</div>
+                    <div class="player-meta" id="songMeta">等待解析资源...</div>
+                </div>
+                <audio id="audioPlayer" controls preload="none"></audio>
+            </div>
+
+        </section>
+
+        <aside class="right-column">
+            <div class="card desc-card">
+                <h3>平台介绍（详细）</h3>
+
+                <p>
+                    该页面为一个纯前端实现的音乐外链解析演示工具，旨在快速展示如何将复杂的分享链接转换为可访问的音频 URL 资源。
+                </p>
+
+                <h4>功能与场景</h4>
+                <ul>
+                    <li>即时解析单首歌曲的音频外链，适用于原型演示与素材预览。</li>
+                    <li>嵌入浏览器原生播放器播放音频样本，适合编辑器、内容管理或教学演示。</li>
+                    <li>在遇到短链、跨域或平台限制时，建议配合后端代理进行稳定抓取与转发。</li>
+                </ul>
+
+                <h4>合规与建议</h4>
+                <p>
+                    请在合法授权或测试范围内使用解析得到的音频资源。若需在产品环境长期依赖，请实现后端缓存、鉴权与合法授权流程以避免版权风险与不稳定性。
+                </p>
+
+                <h4>FAQ</h4>
+                <p><strong>Q：</strong>浏览器无法播放或加载音频？<br />
+                <strong>A：</strong>可能为 CORS/Referer 校验或网易云对直接访问的限制。推荐通过后端代理（服务器请求后返回）以保证稳定性。</p>
+
+                <p style="color:#6b6b6b;font-size:13px;margin-top:12px">示例 ID：<code>1463165983</code>（将其粘贴到输入框并点击「立即解析」可快速检验）</p>
+            </div>
+        </aside>
+
+    </main>
+
+    <footer class="footer">
+        &copy; 2026 音乐外链解析平台
+    </footer>
+
+    <div id="aboutModal" class="modal-overlay">
+        <div class="modal-window">
+            <div class="close-modal" id="closeAbout">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </div>
+            <div class="modal-title">关于本站</div>
+            <div class="modal-text">
+                <p><strong>开源说明：</strong><br>本项目已开源，旨在探索前端音频流媒体解析技术。您可以自由使用代码进行学习或二次开发。</p>
+                <p><strong>免责说明：</strong><br>本工具仅供技术研究与学习交流使用，请支持正版音乐。所有音频资源版权归原作者及其公司所有。</p>
+            </div>
+            <div class="modal-links">
+                <a href="https://qm.qq.com/q/fQ9Ucrwx5Q" class="link-btn link-qq">👉 技术交流与分享</a>
+                <a href="https://qr.alipay.com/fkx19479xoyvjc8ngy3kx57" class="link-btn link-sponsor">☕ 赞助与支持项目</a>
             </div>
         </div>
     </div>
 
-    <div class="modal-overlay" id="modalOverlay" onclick="toggleModal(false)">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <h3 style="margin-bottom:15px">项目介绍</h3>
-            <p style="font-size:13px; color:#666; line-height:1.8;">
-                这是一个基于官方接口的极简解析工具。<br><br>
-                1. 支持提取纯数字 ID<br>
-                2. 支持识别官方分享链接<br>
-                3. 绿色无广告，仅供<a href="https://qm.qq.com/q/NhRSqYDW8y" target="_blank" style="color: var(--netease-red); text-decoration: none; font-weight: bold; border-bottom: 1px dashed var(--netease-red);">学习交流</a>使用。<br>
-                5. 开发不易，以及接口的维护，或许可以考虑<a href="https://chaton-images.s3.us-east-2.amazonaws.com/YnY05o3R4KBepBm6SndoxShbJMVie28PuVt7Lbrc4kQlQhDD11fj7fk9noDGZtCu_1080x1620x113760.jpeg" target="_blank" style="color: var(--netease-red); text-decoration: none; font-weight: bold; border-bottom: 1px dashed var(--netease-red);">赞助一下</a>
-            </p>
-
-
-            <button class="close-modal" onclick="toggleModal(false)">我知道了</button>
-        </div>
-    </div>
-
-    <script>
-        function toggleModal(show) {
-            document.getElementById('modalOverlay').style.display = show ? 'flex' : 'none';
-        }
-        
-        function handleParse() {
-            const input = document.getElementById('songId').value.trim();
-            const resultModule = document.getElementById('result-module');
-            const audioLink = document.getElementById('audioLink');
-        
-            const match = input.match(/id=(\d+)/) || input.match(/^(\d+)$/);
-            
-            if (!match) {
-                alert("请检查 ID 是否正确");
-                return;
-            }
-        
-            const id = match[1];
-            const finalUrl = `https://music.163.com/song/media/outer/url?id=${id}.mp3`;
-        
-            audioLink.href = finalUrl;
-            resultModule.style.display = 'block';
-        }
-        
-        document.getElementById('songId').addEventListener('keypress', (e) => {
-            if(e.key === 'Enter') handleParse();
-        });
-    </script>
+    <script src="script.js"></script>
 
 </body>
-
 </html>
